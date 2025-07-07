@@ -14,8 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock } from "lucide-react";
 import Link from "next/link";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebaseConfig"; // ✅ make sure this path is correct
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/lib/firebaseConfig";
+import { useRouter } from "next/navigation";
+import { FcGoogle } from "react-icons/fc";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 export function LoginForm() {
   const [formData, setFormData] = useState({
@@ -25,6 +28,8 @@ export function LoginForm() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const db = getFirestore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,13 +43,35 @@ export function LoginForm() {
         formData.password
       );
       const user = userCredential.user;
-      console.log("Logged in as:", user.email);
-      // Optionally redirect or do something after login
+      router.push("/dashboard");
     } catch (err: any) {
       console.error(err);
       setError(err.message);
     }
 
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    setError("");
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data().hasPersonalized) {
+        router.push("/dashboard");
+      } else {
+        router.push("/personalize");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Google sign-in failed.");
+    }
     setLoading(false);
   };
 
@@ -85,6 +112,7 @@ export function LoginForm() {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -105,18 +133,40 @@ export function LoginForm() {
             {error && (
               <p className="text-sm text-red-600">{error}</p>
             )}
+
+            <div className="flex items-center space-x-2 pt-2">
+              <div className="h-px flex-1 bg-gray-300" />
+              <p className="text-sm text-gray-500">or continue with Google</p>
+              <div className="h-px flex-1 bg-gray-300" />
+            </div>
+
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={handleGoogleLogin}
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <FcGoogle className="h-5 w-5" />
+                Continue with Google
+              </Button>
+            </div>
           </CardContent>
+
           <CardFooter className="flex flex-col space-y-4">
             <Button
               type="submit"
-              className="btn"
+              className="btn w-full"
               disabled={loading}
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
             <p className="text-sm text-center text-gray-600">
               Don&apos;t have an account?{" "}
-              <Link href="/auth/signup" className="text-[#00dea3] hover:underline">
+              <Link
+                href="/auth/signup"
+                className="text-[#00dea3] hover:underline"
+              >
                 Sign Up
               </Link>
             </p>
