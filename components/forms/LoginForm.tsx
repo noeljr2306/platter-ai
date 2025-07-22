@@ -37,16 +37,19 @@ export function LoginForm() {
     setError("");
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
+      await signInWithEmailAndPassword(
         auth,
         formData.email,
         formData.password
       );
-      const user = userCredential.user;
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred during sign-in.");
+      }
     }
 
     setLoading(false);
@@ -68,9 +71,13 @@ export function LoginForm() {
       } else {
         router.push("/personalize");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Google sign-in failed.");
+      if (err instanceof Error) {
+        setError(err.message || "Google sign-in failed.");
+      } else {
+        setError("An unknown error occurred during Google sign-in.");
+      }
     }
     setLoading(false);
   };

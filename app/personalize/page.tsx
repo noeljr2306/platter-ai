@@ -12,14 +12,14 @@ import { useRouter } from "next/navigation";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
 import { auth } from "@/lib/firebaseConfig";
 import { useAuthState } from "react-firebase-hooks/auth";
-// Animation
+import { generateWeeklyPlan } from "@/helper/handler";
 import { AnimatePresence, motion } from "framer-motion";
 
 const diets = ["Vegetarian", "Keto", "Halal", "Pescatarian", "No Preference"];
 const goals = ["Weight Loss", "Muscle Gain", "Maintain Weight"];
 const allergies = ["Dairy", "Gluten", "Nuts", "Eggs", "Soy"];
 const steps = ["Diet", "Allergies", "Goal", "Meals"];
-const accent = "#00dea3";
+const accent = "linear-gradient(to right, #16f806, #071c05)";
 
 export default function PersonalizeForm() {
   const [step, setStep] = useState(1);
@@ -30,6 +30,8 @@ export default function PersonalizeForm() {
   const [user] = useAuthState(auth);
   const router = useRouter();
   const db = getFirestore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const toggleAllergy = (item: string) => {
     if (selectedAllergies.includes(item)) {
@@ -40,23 +42,64 @@ export default function PersonalizeForm() {
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
-    const userDoc = doc(db, "users", user.uid);
-    await setDoc(
-      userDoc,
-      {
-        hasPersonalized: true,
-        dietType: selectedDiet,
-        allergies: selectedAllergies,
-        goal: selectedGoal,
-        mealsPerDay,
-      },
-      { merge: true }
-    );
-    router.push("/dashboard");
+    if (!user || !user.uid) {
+      setErrorMsg("User not authenticated.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg("");
+
+    const preferences = {
+      hasPersonalized: true,
+      dietType: selectedDiet || null,
+      allergies: selectedAllergies || [],
+      goal: selectedGoal || null,
+      mealsPerDay: mealsPerDay || null,
+    };
+
+    try {
+      
+      const userDoc = doc(db, "users", user.uid, "preferences", "data");
+      await setDoc(userDoc, preferences, { merge: true });
+
+    
+      const weeklyPlan = await generateWeeklyPlan(preferences);
+
+      if (!weeklyPlan) {
+        setErrorMsg("Could not generate a meal plan. Please try again later.");
+        setIsLoading(false);
+        return;
+      }
+
+    
+      const { mealPlan, groceryList } = weeklyPlan;
+      const planDoc = doc(db, "users", user.uid, "weeklyPlan", "data");
+      const cleanedPlan = JSON.parse(JSON.stringify(mealPlan));
+      const cleanedGroceryList = JSON.parse(JSON.stringify(groceryList));
+      console.log("Saving weekly plan with:", {
+        plan: cleanedPlan,
+        groceryList: cleanedGroceryList,
+        createdAt: new Date().toISOString(),
+      });
+
+      await setDoc(planDoc, {
+        plan: cleanedPlan,
+        groceryList: cleanedGroceryList,
+        createdAt: new Date().toISOString(),
+      });
+     
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 800);
+    } catch (error) {
+      console.error("Error during personalization:", error);
+      setErrorMsg("Failed to complete personalization. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  
   const Stepper = () => (
     <div className="flex items-center justify-between mb-8 px-4">
       {steps.map((label, idx) => {
@@ -70,17 +113,17 @@ export default function PersonalizeForm() {
             <div
               className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
                 current
-                  ? `border-[${accent}] bg-[${accent}] text-white`
+                  ? `border-[#16f806] bg-[#16f806] text-white`
                   : completed
-                  ? `border-[${accent}] bg-white text-[${accent}]`
+                  ? `border-[#16f806] bg-white text-[#16f806]`
                   : "border-gray-300 bg-white text-gray-400"
               } transition-colors duration-300`}
               style={
                 current || completed
                   ? {
-                      borderColor: accent,
-                      color: current ? "#fff" : accent,
-                      background: current ? accent : "#fff",
+                      borderColor: "#16f806",
+                      color: current ? "#fff" : "#16f806",
+                      background: current ? "#16f806" : "#fff",
                     }
                   : {}
               }
@@ -89,7 +132,7 @@ export default function PersonalizeForm() {
             </div>
             <span
               className="text-xs mt-2"
-              style={current ? { color: accent, fontWeight: 600 } : {}}
+              style={current ? { color: "#16f806", fontWeight: 600 } : {}}
             >
               {label}
             </span>
@@ -97,7 +140,7 @@ export default function PersonalizeForm() {
               <div
                 className="absolute top-4 left-full w-full h-1"
                 style={{
-                  background: completed ? accent : "#e5e7eb",
+                  background: completed ? "#16f806" : "#e5e7eb",
                   zIndex: -1,
                 }}
               />
@@ -108,7 +151,7 @@ export default function PersonalizeForm() {
     </div>
   );
 
-  // Animation variants
+ 
   const variants = {
     initial: { opacity: 0, x: 40 },
     animate: { opacity: 1, x: 0 },
@@ -116,7 +159,28 @@ export default function PersonalizeForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-white to-[#e6fff6]">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-white to-[#e6fff6] relative">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
+          <div className="bg-white/80 rounded-xl px-8 py-6 shadow-xl flex flex-col items-center">
+            <div className="animate-spin mb-4 h-10 w-10 border-4 border-[#16f806] border-t-transparent rounded-full" />
+            <p className="text-lg font-semibold text-gray-800">
+              wait while we generate your meals
+            </p>
+            {errorMsg && (
+              <div className="mt-4 text-red-600 text-sm text-center">
+                {errorMsg}
+                <button
+                  className="mt-2 px-4 py-1 bg-[#16f806] text-white rounded"
+                  onClick={() => setErrorMsg("")}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <Card className="w-full max-w-lg text-center shadow-2xl rounded-2xl border-0">
         <CardHeader>
           <CardTitle className="text-2xl font-bold mb-2">
@@ -145,8 +209,8 @@ export default function PersonalizeForm() {
                       variant={selectedDiet === diet ? "default" : "outline"}
                       style={
                         selectedDiet === diet
-                          ? { background: accent, borderColor: accent }
-                          : { borderColor: accent, color: accent }
+                          ? { background: accent, borderColor: "#16f806" }
+                          : { borderColor: "#16f806", color: "#16f806" }
                       }
                       className={`py-3 text-base font-medium transition-all duration-200 ${
                         selectedDiet === diet
@@ -182,8 +246,8 @@ export default function PersonalizeForm() {
                       }
                       style={
                         selectedAllergies.includes(allergy)
-                          ? { background: accent, borderColor: accent }
-                          : { borderColor: accent, color: accent }
+                          ? { background: accent, borderColor: "#16f806" }
+                          : { borderColor: "#16f806", color: "#16f806" }
                       }
                       className={`py-3 text-base font-medium transition-all duration-200 ${
                         selectedAllergies.includes(allergy)
@@ -217,8 +281,8 @@ export default function PersonalizeForm() {
                       variant={selectedGoal === goal ? "default" : "outline"}
                       style={
                         selectedGoal === goal
-                          ? { background: accent, borderColor: accent }
-                          : { borderColor: accent, color: accent }
+                          ? { background: accent, borderColor: "#16f806" }
+                          : { borderColor: "#16f806", color: "#16f806" }
                       }
                       className={`py-3 text-base font-medium transition-all duration-200 ${
                         selectedGoal === goal
@@ -251,12 +315,12 @@ export default function PersonalizeForm() {
                   max={6}
                   value={mealsPerDay}
                   onChange={(e) => setMealsPerDay(parseInt(e.target.value))}
-                  className="w-full accent-[#00dea3]"
-                  style={{ accentColor: accent }}
+                  className="w-full accent-[#16f806]"
+                  style={{ accentColor: "#16f806" }}
                 />
                 <p
                   className="text-lg mt-2 font-medium"
-                  style={{ color: accent }}
+                  style={{ color: "#16f806" }}
                 >
                   {mealsPerDay} meals/day
                 </p>
@@ -277,7 +341,7 @@ export default function PersonalizeForm() {
           {step < 4 ? (
             <Button
               onClick={() => setStep(step + 1)}
-              style={{ background: accent, borderColor: accent }}
+              style={{ background: accent, borderColor: "#16f806" }}
               className="text-white px-8 py-2 text-base font-semibold shadow-md hover:scale-105 transition-transform"
               disabled={
                 (step === 1 && !selectedDiet) || (step === 3 && !selectedGoal)
@@ -288,7 +352,7 @@ export default function PersonalizeForm() {
           ) : (
             <Button
               onClick={handleSubmit}
-              style={{ background: accent, borderColor: accent }}
+              style={{ background: accent, borderColor: "#16f806" }}
               className="text-white px-8 py-2 text-base font-semibold shadow-md hover:scale-105 transition-transform"
             >
               Finish

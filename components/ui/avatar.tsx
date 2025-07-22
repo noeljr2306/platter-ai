@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-
 export const Avatar: React.FC<{
   className?: string;
   children: React.ReactNode;
@@ -11,7 +10,6 @@ export const Avatar: React.FC<{
     {children}
   </div>
 );
-
 export const AvatarImage: React.FC<{
   src: string;
   alt?: string;
@@ -25,7 +23,6 @@ export const AvatarImage: React.FC<{
     height={40}
   />
 );
-
 export const AvatarFallback: React.FC<{
   className?: string;
   children: React.ReactNode;

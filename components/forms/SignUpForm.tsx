@@ -23,7 +23,6 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import { useRouter } from "next/navigation";
 
-
 export function SignupForm() {
   const [formData, setFormData] = useState({
     email: "",
@@ -34,7 +33,6 @@ export function SignupForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +51,7 @@ export function SignupForm() {
         formData.password
       );
       console.log("Signed up as:", userCredential.user.email);
-      router.push("/personalize")
+      router.push("/personalize");
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -73,10 +71,13 @@ export function SignupForm() {
     try {
       const result = await signInWithPopup(auth, provider);
       console.log("Signed up with Google as:", result.user.email);
-      // Optionally redirect
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Google sign-in failed.");
+      if (err instanceof Error) {
+        setError(err.message || "Google sign-in failed.");
+      } else {
+        setError("Google sign-in failed.");
+      }
     }
     setLoading(false);
   };
@@ -102,7 +103,7 @@ export function SignupForm() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {/* Email */}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -120,7 +121,7 @@ export function SignupForm() {
               </div>
             </div>
 
-            {/* Password */}
+           
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -138,7 +139,7 @@ export function SignupForm() {
               </div>
             </div>
 
-            {/* Confirm Password */}
+          
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">

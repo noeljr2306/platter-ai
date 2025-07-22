@@ -35,7 +35,7 @@ export default function Home() {
     },
   ];
   return (
-    <div>
+    <div className="bg-white min-h-screen">
       <Navbar />
       <section className="flex flex-col xl:flex-row relative z-0 max-w-[1440px] mx-auto">
         <div className="pt-25 flex-1 px-5 sm:px-10 sm:py-40 py-5">
@@ -56,7 +56,7 @@ export default function Home() {
           <div className="mt-10 flex flex-col items-start justify-start gap-4 sm:flex-row">
             <Link
               href="/auth/login"
-              className="flex rounded-xl bg-[#00DEA3] px-6 py-3 text-sm font-medium text-white"
+              className="flex gap-3 rounded-xl bg-gradient-to-r from-[#16f806] to-[#071c05] px-6 py-3 text-sm font-medium text-white"
             >
               Get Started <ArrowRight />
             </Link>
@@ -112,7 +112,7 @@ export default function Home() {
           <div className="mt-10">
             <Link
               href="/auth/signup"
-              className="inline-flex items-center justify-center bg-primary px-6 py-3 text-sm font-medium text-zinc-200 rounded-2xl"
+              className="inline-flex items-center justify-center bg-gradient-to-r from-[#16f806] to-[#071c05] px-6 py-3 text-sm font-medium text-white rounded-2xl"
             >
               Create Your Profile <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
